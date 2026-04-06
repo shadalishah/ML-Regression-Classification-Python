@@ -172,13 +172,7 @@ pip install ISLP statsmodels pandas numpy matplotlib seaborn
 # Launch notebook
 jupyter notebook Chapter_3.ipynb
 ```
-## 🙏 Acknowledgements
-Special thanks to Karim Aboussel Ham whose repository ISLP-applied-solutions provided useful guidance and reference during the completion of this project.
 
-## 👤 About the Author
-Shad Ali Shah MPhil Economics Student — School of Economics, Quaid-i-Azam University, Islamabad Passionate about the intersection of Economics, Data Science, and Machine Learning
-
-🔗 LinkedIn  |  🐙 GitHub
 ---
 
 ## 📚 Reference
@@ -186,6 +180,23 @@ Shad Ali Shah MPhil Economics Student — School of Economics, Quaid-i-Azam Univ
 James, G., Witten, D., Hastie, T., Tibshirani, R., & Taylor, J. (2023).  
 *An Introduction to Statistical Learning with Applications in Python.* Springer.  
 Chapter 3: Linear Regression — Applied Exercises 8–15.
+
+---
+
+## 🙏 Acknowledgements
+
+Special thanks to **Karim Aboussel Ham** whose repository [ISLP-applied-solutions](https://github.com/KarimABOUSSELHAM) provided useful guidance and reference during the completion of this project.
+
+---
+
+## 👤 About the Author
+
+**Shad Ali Shah**  
+🎓 MPhil Economics Student — School of Economics, Quaid-i-Azam University, Islamabad  
+💡 Passionate about the intersection of **Economics**, **Data Science**, and **Machine Learning**
+
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-blue?logo=linkedin)](https://www.linkedin.com/in/shadalishah)
+[![GitHub](https://img.shields.io/badge/GitHub-Follow-black?logo=github)](https://github.com/shadalishah)
 
 ---
 
