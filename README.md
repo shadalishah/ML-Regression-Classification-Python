@@ -172,7 +172,13 @@ pip install ISLP statsmodels pandas numpy matplotlib seaborn
 # Launch notebook
 jupyter notebook Chapter_3.ipynb
 ```
+## 🙏 Acknowledgements
+Special thanks to Karim Aboussel Ham whose repository ISLP-applied-solutions provided useful guidance and reference during the completion of this project.
 
+## 👤 About the Author
+Shad Ali Shah MPhil Economics Student — School of Economics, Quaid-i-Azam University, Islamabad Passionate about the intersection of Economics, Data Science, and Machine Learning
+
+🔗 LinkedIn  |  🐙 GitHub
 ---
 
 ## 📚 Reference
