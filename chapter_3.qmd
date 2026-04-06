@@ -1,0 +1,911 @@
+---
+title: "Statistical Learning Analysis Report"
+subtitle: "Chapter 3: ISLR2 Exercise Solutions"
+author: "Shad Ali Shah"
+date: today
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    toc-location: left
+    number-sections: true
+    number-depth: 3
+    code-fold: true
+    code-tools: true
+    code-summary: "Show code"
+    theme: cosmo
+    colorlinks: true
+    link-citations: true
+    df-print: kable
+    fig-cap-location: bottom
+    tbl-cap-location: top
+    crossref:
+      fig-title: "Figure"
+      tbl-title: "Table"
+      fig-prefix: "Fig."
+      tbl-prefix: "Table"
+execute:
+  echo: true
+  warning: false
+  message: false
+  error: true
+  cache: false
+  keep-going: true
+  fig-width: 6.5
+  fig-height: 4
+jupyter: python3
+---
+
+## Exercise 8
+
+a. Before performing simple linear regression we should import libraries and database
+
+```{python}
+import numpy as np
+import pandas as pd
+from matplotlib.pyplot import subplots
+import statsmodels.formula.api as smf
+import statsmodels.api as sm
+from ISLP import load_data
+from ISLP.models import (ModelSpec as MS,summarize,poly)
+from scipy.stats import t
+from math import sqrt
+import seaborn as sns
+import matplotlib.pyplot as plt
+from statsmodels.stats.anova import anova_lm
+```
+
+We now import the Auto dataset to regress mpg on horsepower. To do so simply, we have imported the function load_data. We could have used also read_csv function availabre in pandas library since Auto dataset is in csv format. 
+
+```{python}
+Auto=load_data("Auto")
+Auto.columns #Make sure that all Auto columns are imported
+```
+
+### (a)
+
+Next step is to create the model matrix. The matrix should emulate the simple linear regression, i.e: it should contain to factors in order for the sm library to understand that there are two parameters to find
+
+```{python}
+X=pd.DataFrame({"intercept":np.ones(Auto.shape[0]),"lstat":Auto["horsepower"]})
+```
+
+Now we are ready to extract the response and fit the model
+
+```{python}
+y=Auto["mpg"]
+model=sm.OLS(y,X)
+results=model.fit()
+summarize(results)
+```
+
+i. The p-value associated with both t-stats is near to 0. This shows clearly a strong evidence of the existance of a relationship between "mpg" and "horsepower"
+
+ii. To assess how far the relationship is strong we should check the percentage of variance explained by the model.
+For this we should use the $ R^2 $ indicator or the RSE
+
+```{python}
+results.rsquared#For r squared
+```
+
+```{python}
+#For the residual standard error
+rse=np.sqrt(results.scale)
+rse
+```
+
+Now the conclusion is nearly 60% of the variability of "mpg" can be explained by "horsepower". But what about the interpretation of RSE?! To answer we should compare it with the mean of the response.
+
+```{python}
+lack_fit=rse/np.mean(Auto["mpg"])
+lack_fit
+```
+
+Hence, the lack of fit is estimated to 20,92%
+
+iii. The more is the horsepower the more mpg will be consumed. (I assume here that "mpg" means the mean consumption of gas)
+
+iv. Predicted mpg associated with a horespower of 98 is computed using the function predict associated with the fitted model
+Payattention that preidction should take a dataframe with the same number of columns as a the number of parameters. This is why we have tried to add a column to the number 98
+
+```{python}
+newdf=pd.DataFrame({'point':[98]})
+newdf=sm.add_constant(newdf,has_constant='add')#we have changed the argument of has_constant
+#from skip to add because 
+# add_constant works per default when the list has a variance different from 0
+x1=results.get_prediction(newdf)
+x1.predicted_mean[0]
+```
+
+Now let's look for confidence and prediction intervals with 95%. We use the method summary_frame() available in statsmodels library. The mentionned function can only be applied on PredictionResults class. This is exactly why x1 has been converted to such class in the previous input.
+
+```{python}
+x1.summary_frame(alpha=0.05)
+```
+
+### (b)
+
+```{python}
+def abline(ax, b, m, *args, **kwargs):
+    "Add a line with slope m and intercept b to ax"
+    xlim = ax.get_xlim()
+    ylim = [m * xlim[0] + b, m * xlim[1] + b]
+    ax.plot(xlim, ylim, *args, **kwargs)
+ax = Auto.plot.scatter('horsepower', 'mpg')
+abline(ax,results.params[0],results.params[1],'r--',linewidth=3);
+```
+
+### (c)
+
+```{python}
+#Draw residuals against fitted values
+ax=subplots(figsize=(10,10))[1]
+ax.scatter(results.fittedvalues,results.resid)
+ax.set_xlabel("Fitted values")
+ax.set_ylabel("Residuals");
+```
+
+The funnel shape is clear from the plot, which emphasizes the presence heteroscedasticity of the fitted simple linear regression model.<br>
+We also realise that relationship between mpg and horsepower is highly non-linear.
+
+```{python}
+# Plot the leverage stats
+infl = results.get_influence()
+ax = subplots(figsize=(8,8))[1]
+ax.scatter(np.arange(X.shape[0]), infl.hat_matrix_diag)
+ax.set_xlabel('Index')
+ax.set_ylabel('Leverage')
+np.argmax(infl.hat_matrix_diag)
+```
+
+```{python}
+n=Auto.shape[0]
+leverage_thres=2/n
+leverage_thres
+```
+
+The highest leverage stat, which is around 0.03, attended at point 115 is not much larger than the found threshold (=0.005). This indicates there are no high leverage points which need special handling.
+
+```{python}
+#Draw studentized residuals against fitted values
+ax=subplots(figsize=(10,10))[1]
+studentized_residuals = results.get_influence().resid_studentized_internal
+ax.scatter(results.fittedvalues,studentized_residuals)
+ax.set_xlabel("Fitted values")
+ax.set_ylabel("Studentized residuals");
+```
+
+```{python}
+df=pd.DataFrame({'fitted':results.fittedvalues,'studentized':studentized_residuals})
+df[df['studentized']>3]
+```
+
+Observations 320 and 327 are believed to be (post-analysis) outliers.
+
+## Exercise 9
+
+```{python}
+Auto=load_data("Auto")
+```
+
+```{python}
+Auto.head()
+```
+
+```{python}
+Auto["origin"].unique()
+```
+
+### (a)
+
+```{python}
+#| scrolled: true
+pd.plotting.scatter_matrix(Auto);
+```
+
+```{python}
+Auto.corr(numeric_only=True)
+# The parameter mumeric_only is casted to true in order to avoid correlation among categorical values
+```
+
+### (c)
+
+```{python}
+
+import statsmodels.api as sm
+from ISLP import load_data
+from ISLP.models import ModelSpec as MS
+
+# Load data
+Auto = load_data('Auto')
+
+# Check columns
+print("Columns:", Auto.columns.tolist())
+
+# Prepare data - only drop 'mpg'
+y = Auto['mpg']
+terms = Auto.columns.drop('mpg')
+
+# Remove non-numeric columns if any
+Auto_numeric = Auto.select_dtypes(include=['float64', 'int64'])
+terms = Auto_numeric.columns.drop('mpg')
+
+X = MS(terms).fit_transform(Auto)
+model = sm.OLS(y, X)
+results = model.fit()
+print(results.summary())
+
+```
+
+```{python}
+res=model.fit()
+summarize(res)
+```
+
+#### (i)
+
+```{python}
+# Now let's use the anova_lm() function. Beware, when faced with a
+# single model anova_lm() only works when that model is fitted using statsmodels.formula.api
+res1=smf.ols('y~X',data=Auto).fit()
+anova_lm(res1)
+```
+
+F statistic is much larger than 1. Therefore, we must reject the null hypothesis considering the whole regression coefficients are null.
+
+#### (ii)
+
+Displacement, weight, year and origin are the predictors which look to have significant relationships with mpg
+
+#### (iii)
+
+The coefficient suggests that, on average, when the other variables are held constant, an increase of one year (of production) corresponds to an increase of 0.75 of mpg (so, the more recent is the year of production the more efficient is the car).
+
+### (d)
+
+```{python}
+#Draw residuals against fitted values
+ax=subplots(figsize=(10,10))[1]
+ax.scatter(res.fittedvalues,res.resid)
+sns.residplot(data=Auto,x=res.fittedvalues,y='mpg',lowess=True)
+ax.set_xlabel("Fitted values")
+ax.set_ylabel("Residuals");
+```
+
+The funnel shape around the fitted curve suggests the existence of heteroscedasticity. There is also evidence of non linearity.
+
+```{python}
+# Plot the leverage stats
+infl = res.get_influence()
+ax = subplots(figsize=(8,8))[1]
+ax.scatter(np.arange(X.shape[0]), infl.hat_matrix_diag)
+ax.set_xlabel('Index')
+ax.set_ylabel('Leverage')
+np.argmax(infl.hat_matrix_diag)
+```
+
+```{python}
+n=Auto.shape[0]
+leverage_thres=8/n# 7 is the number of predictors
+leverage_thres
+```
+
+```{python}
+infl.hat_matrix_diag[13]#13 is the observation where the maximal leverage is attended
+```
+
+We consider that there is no high leverage point since the maximal leverage is 0.19 (attained at point 13), which does not greatly exceed the threshold (the factor of excess is less than 10).
+
+```{python}
+#Draw studentized residuals against fitted values
+ax=subplots(figsize=(10,10))[1]
+studentized_residuals = res.get_influence().resid_studentized_internal
+ax.scatter(results.fittedvalues,studentized_residuals)
+ax.set_xlabel("Fitted values")
+ax.set_ylabel("Studentized residuals");
+```
+
+```{python}
+df=pd.DataFrame({'fitted':res.fittedvalues,'studentized':studentized_residuals})
+df[np.abs(df['studentized'])>3]
+```
+
+Observations 242, 320, 323 and 324 are believed to be outliers.
+
+### (e)
+
+```{python}
+#Let's try out some interaction terms
+model2 = smf.ols(formula='mpg ~ displacement*origin + year', data=Auto) # the formula automatically
+# applies the hierarchy principle
+print(summarize(model2.fit()))
+model3 = smf.ols(formula='mpg ~ horsepower*weight +origin', data=Auto)
+print(summarize(model3.fit()))
+```
+
+Both the suggested interactions appear to be statistically significant.
+
+### (f)
+
+```{python}
+model4 = smf.ols(formula='mpg ~ horsepower+np.log(weight) +origin', data=Auto)
+print(summarize(model4.fit()))
+```
+
+```{python}
+model5 = smf.ols(formula='mpg ~ horsepower+np.sqrt(weight) +origin', data=Auto)
+print(summarize(model5.fit()))
+```
+
+```{python}
+model6 = smf.ols(formula='mpg ~ horsepower+np.power(weight,2) +origin', data=Auto)
+print(summarize(model6.fit()))
+```
+
+The suggested models appear to have statistically significant terms including the transformed ones.
+
+## Exercise 10
+
+```{python}
+Carseats=load_data('Carseats')
+```
+
+```{python}
+Carseats.info()
+```
+
+```{python}
+Carseats.head()
+```
+
+### (a)
+
+```{python}
+y=Carseats['Sales']
+X=MS(Carseats[['Price','Urban','US']]).fit_transform(Carseats)
+model=sm.OLS(y,X)
+result=model.fit()
+summarize(result)
+```
+
+### (b)
+
+The coefficient related to the prdictor 'Urban' is statistically insignificant suggesting that there is no relationship between this latter and the response.<br>
+The relationship between US and the response is positive. It means that when a store is located in the US, it will sell an average of 1200 more units approximately.<br>
+On the other hand, the relationship with 'Price' is negative. That means that an increase in 1 dollar in the price will cause the sales to decrease by approximately 55 units.
+
+### (c)
+
+$
+\begin{equation*}
+Sales = 13.0435 - 0.0545Price + 1.2006US - 0.0219Urban = 
+\begin{cases}
+                        13.0435−0.0219×Urban+1.2006×US−0.0545×Price &\text{$Urban=1,US=1$}\\
+                        13.0435−0.0219×Urban+1.2006×Price &\text{$Urban=1,US=0$}\\
+                        13.0435+1.2006×US−0.0545×Price &\text{$Urban=0,US=1$}\\
+                        13.0435−0.0545×Price &\text{$Urban=0,US=0$}\\
+\end{cases}
+\end{equation*}
+$
+
+### (d)
+
+Through reading the p-values obtained in question a we can reject the null hypothesis for both predictors 'Price' and 'US' but not for 'Urban'.
+
+### (e)
+
+```{python}
+Xnew=MS(Carseats[['Price','US']]).fit_transform(Carseats)
+model_new=sm.OLS(y,Xnew)
+result_new=model_new.fit()
+summarize(result_new)
+```
+
+### (f)
+
+To answer this question we can use the $R^2$ coefficient.
+
+```{python}
+print(" The R-squared for the regression model without Urban is ",result_new.rsquared)
+print(" The R-squared for the regression model with Urban is ",result.rsquared)
+```
+
+We deduce that both models have namely the same $R^2$ value. However we must prefer the later model as it has a lower number of predictors. 
+
+### (g)
+
+```{python}
+result_new.conf_int(alpha=0.05)
+```
+
+### (h)
+
+```{python}
+# Plot the leverage stats
+infl = result_new.get_influence()
+ax = subplots(figsize=(8,8))[1]
+ax.scatter(np.arange(Xnew.shape[0]), infl.hat_matrix_diag)
+ax.set_xlabel('Index')
+ax.set_ylabel('Leverage')
+np.argmax(infl.hat_matrix_diag)
+```
+
+```{python}
+n=Carseats.shape[0]
+leverage_thres=3/n
+leverage_thres
+```
+
+We consider that there is no high leverage point since the maximal leverage is no more than 0.045 (attained at point 42), which does not greatly exceed the threshold of 0.0075.
+
+```{python}
+studentized_residuals = result_new.get_influence().resid_studentized_internal
+df=pd.DataFrame({'fitted':result_new.fittedvalues,'studentized':studentized_residuals})
+df[np.abs(df['studentized'])>3].count()
+```
+
+We conclude that there is no observation for which the absolute value of the studentized residual is greater than 3, which means that there is no (post analysis) potential outlier. 
+
+## Exercise 11
+
+```{python}
+np.random.seed(1) # In order to generate the same results whenever we run the code
+rng = np.random.default_rng (1)
+x = rng.normal(size =100)
+y = 2 * x + rng.normal(size =100)
+```
+
+### (a)
+
+```{python}
+df=pd.DataFrame({'x':x,'y':y})
+X=MS(df[['x']],intercept=False).fit_transform(df)
+model=sm.OLS(y,X)
+result=model.fit()
+summarize(result)
+```
+
+The coefficient estimate is statistically significant. Therefore, we can reject the null hypothesis and conclude that there is a relationship between x and y.
+
+### (b)
+
+```{python}
+Y=MS(df[['y']],intercept=False).fit_transform(df)
+model_new=sm.OLS(x,Y)
+result_new=model_new.fit()
+summarize(result_new)
+```
+
+Results of the new model yield to the same conclusion as for the existence of an evidence of relationship between x and y.
+
+### (c)
+
+Surprisingly, the coefficients of the fitted models in (a) and (b) are not the inverse of each other, though they should be apparently.<br>
+The formulas of the coefficients are in equation (3.38) in the book. These formulas prove the observed fact since the noise inserted in y makes its variance different from the variance of x. 
+
+![20230905_212542-3.jpg](attachment:20230905_212542-3.jpg)
+
+### (e)
+
+The former obtained equation for t-stat is symmetric in y and x. Therefore, it is clear now why t-stats of both fitted models in (a) and (b) are equal. 
+
+### (f)
+
+```{python}
+# regress y onto x
+X1=MS(df[['x']]).fit_transform(df)
+model1=sm.OLS(y,X1)
+result1=model1.fit()
+summarize(result1)
+```
+
+```{python}
+# regress x onto y
+Y1=MS(df[['y']]).fit_transform(df)
+model2=sm.OLS(x,Y1)
+result2=model2.fit()
+summarize(result2)
+```
+
+t-stats for both models coefficients $\beta_{1}$ equal 16.734
+
+## Exercise 12
+
+### (a)
+
+From the previous exercise we learn that the condition of the question becomes true when y and x have the same variance.
+
+### (b)
+
+```{python}
+x = np.arange(100)
+y = x + np.random.normal(size=100)
+df=pd.DataFrame({'x':x,'y':y})
+#regression of y onto x
+X=MS(df[['x']],intercept=False).fit_transform(df)
+model=sm.OLS(y,X)
+result=model.fit()
+summarize(result)
+```
+
+```{python}
+#regression of x onto y
+Y=MS(df[['y']],intercept=False).fit_transform(df)
+model_y=sm.OLS(x,Y)
+result_y=model_y.fit()
+summarize(result_y)
+```
+
+### (c)
+
+```{python}
+x = np.arange(100)
+y = x[::-1]
+df1=pd.DataFrame({'x':x,'y':y})
+```
+
+```{python}
+#regression of y onto x
+X1=MS(df1[['x']],intercept=False).fit_transform(df1)
+model1=sm.OLS(y,X1)
+result1=model1.fit()
+summarize(result1)
+```
+
+```{python}
+#regression of x onto y
+Y1=MS(df[['y']],intercept=False).fit_transform(df1)
+model2=sm.OLS(x,Y1)
+result2=model2.fit()
+summarize(result2)
+```
+
+## Exercise 13
+
+```{python}
+np.random.seed(1)
+```
+
+### (a)
+
+```{python}
+x=np.random.normal(loc=0.0,scale=1.0,size=100)
+```
+
+### (b)
+
+```{python}
+eps=np.random.normal(loc=0.0,scale=0.25,size=100)
+```
+
+### (c)
+
+```{python}
+y=-1+0.5*x+eps
+```
+
+```{python}
+y.shape
+```
+
+In this linear model $\beta_{1}$ equals 0.5 and $\beta_{0}$ equals -1
+
+### (d)
+
+```{python}
+ax=subplots(figsize=(10,10))[1]
+ax.scatter(x,y)
+ax.set_xlabel("X")
+ax.set_ylabel("Y");
+```
+
+### (e)
+
+```{python}
+df=pd.DataFrame({'x':x,'y':y})
+X=MS(df[['x']]).fit_transform(df)
+model=sm.OLS(y,X)
+result=model.fit()
+result.summary()
+```
+
+Coefficients obrained by the regression model are approximately the same as the coefficients formed in question (c)
+
+### (f)
+
+```{python}
+beta_0=result.params[0]
+beta_1=result.params[1]
+y_pred=[beta_0 + beta_1*xi for xi in x]
+y_true=[-1.0+0.5*xi for xi in x]
+plt.scatter(x,y)
+plt.xlabel("x")
+plt.ylabel("y")
+plt.plot(x, y_pred, 'blue', label='Model fit')
+plt.plot(x, y_true, 'red', label='Population')
+plt.legend(loc='upper left');
+```
+
+### (g)
+
+```{python}
+X1 = MS([poly('x', degree=2)]).fit_transform(df)
+model1=sm.OLS(y,X1)
+result1=model1.fit()
+result1.summary()
+```
+
+The p-value of the quadratic term shows that there is no significant relationship between $X^2$ and $Y$.<br>
+Therefore, there is no evidence that the insertion of the quadratic term improves the model fit.
+
+### (h)
+
+```{python}
+eps1 = np.random.normal(scale =0.01, size=100)
+y1 = -1.0 + 0.5*x + eps1
+df1=pd.DataFrame({'x1':x,'y1':y1})
+X2=MS(df1[['x1']]).fit_transform(df1)
+model2=sm.OLS(y1,X2)
+result2=model2.fit()
+beta_0=result2.params[0]
+beta_1=result2.params[1]
+y_pred=[beta_0 + beta_1*xi for xi in x]
+y_true=[-1.0+0.5*xi for xi in x]
+plt.scatter(x,y1)
+plt.xlabel("x")
+plt.ylabel("y")
+plt.plot(x, y_pred, 'blue', label='Model fit')
+plt.plot(x, y_true, 'red', label='Population')
+plt.legend(loc='upper left');
+```
+
+Reducing the noise makes the fitted model and the true one almost identical.
+
+### (i)
+
+```{python}
+eps2 = np.random.normal(scale =10, size=100)
+y2 = -1.0 + 0.5*x + eps2
+df2=pd.DataFrame({'x2':x,'y2':y2})
+X3=MS(df2[['x2']]).fit_transform(df2)
+model3=sm.OLS(y2,X3)
+result3=model3.fit()
+beta_0=result3.params[0]
+beta_1=result3.params[1]
+y_pred=[beta_0 + beta_1*xi for xi in x]
+y_true=[-1.0+0.5*xi for xi in x]
+plt.scatter(x,y2)
+plt.xlabel("x")
+plt.ylabel("y")
+plt.plot(x, y_pred, 'blue', label='Model fit')
+plt.plot(x, y_true, 'red', label='Population')
+plt.legend(loc='upper left');
+```
+
+Increasing the noise makes the fitted model and the true more distinguishable.
+
+```{python}
+result.conf_int(alpha=0.05)
+```
+
+```{python}
+result2.conf_int(alpha=0.05)
+```
+
+```{python}
+result3.conf_int(alpha=0.05)
+```
+
+As exepected, the more you add noise the larger are the confidence intervals for the regression coefficients. The inverse is true.
+
+## Exercise 14
+
+### (a)
+
+```{python}
+rng = np.random.default_rng (10)
+x1 = rng.uniform(0, 1, size =100)
+x2 = 0.5 * x1 + rng.normal(size =100) / 10
+y = 2 + 2 * x1 + 0.3 * x2 + rng.normal(size =100)
+```
+
+The regression coefficients are:<br>
+$\beta_{0}=2$<br>
+$\beta_{1}=2$<br>
+$\beta_{2}=0.3$
+
+### (b)
+
+```{python}
+np.corrcoef(x1,x2)
+```
+
+The correlation between x1 and x2 is 0.772
+
+```{python}
+plt.scatter(x1,x2)
+plt.xlabel('x1')
+plt.ylabel('x2');
+```
+
+### (c)
+
+```{python}
+df=pd.DataFrame({'x1':x1,'x2':x2,'y':y})
+X=MS(['x1','x2']).fit_transform(df)
+model=sm.OLS(y,X)
+result=model.fit()
+print('beta0 is',result.params[0])
+print('beta1 is',result.params[1])
+print('beta2 is',result.params[2])
+```
+
+The estimated coefficients by the regression model are clearly different from the true ones except for $\beta_{0}$ 
+
+```{python}
+summarize(result)
+```
+
+Based on the p-values we can reject the null hypothesis of $H_{0}: \beta_{1}=0$ but we cannot the null hypothesis of $H_{0}: \beta_{2}=0$
+
+### (d)
+
+```{python}
+X1=MS(['x1']).fit_transform(df)
+model1=sm.OLS(y,X1)
+result1=model1.fit()
+summarize(result1)
+```
+
+The p-values show that we can reject the null hypothesis $H_{0}: \beta_{1}=0$. Moreover, we notice that both obtained coefficients are improved since they are closer enough to the real ones.
+
+### (e)
+
+```{python}
+X2=MS(['x2']).fit_transform(df)
+model2=sm.OLS(y,X2)
+result2=model2.fit()
+summarize(result2)
+```
+
+The results has significantly changed relatively to (c). the coefficient for x2 has become even greater than the intercept coefficient.<br>
+Furthermore, base on the p-values we can reject the null hypothesis $H_{0}: \beta_{1}=0$.
+
+### (f)
+
+The high correlation between x1 and x2 as shown above suggests that there is a high deal of colinearity. This explains why fitted one by one we can reject the null hypotheses, but when the predictors are assembled together the p-values show that one of them should be dismissed. In that sense there is no contradiction.
+
+### (g)
+
+```{python}
+x1 = np.concatenate([x1, [0.1]])
+x2 = np.concatenate([x2, [0.8]])
+y = np.concatenate([y, [6]])
+```
+
+```{python}
+#Model with both updated x1 and x2
+df2=pd.DataFrame({'x1':x1,'x2':x2,'y':y})
+X3=MS(['x1','x2']).fit_transform(df2)
+model3=sm.OLS(y,X3)
+result3=model3.fit()
+summarize(result3)
+```
+
+```{python}
+# Fit a new model with only x1
+X4=MS(['x1']).fit_transform(df2)
+model4=sm.OLS(y,X4)
+result4=model4.fit()
+summarize(result4)
+```
+
+```{python}
+# Fit a new model with only x1
+X5=MS(['x2']).fit_transform(df2)
+model5=sm.OLS(y,X5)
+result5=model5.fit()
+summarize(result5)
+```
+
+The insertion of a new observation caused the regression coefficient related to $x_{1}$ to decrease and the other related to $x_{2}$ to increase in all the models.
+
+In order to evaluate wether the added observation is an outlier or a leverage point, you can exploit, for the three model combinations, the appropriate type of figures (resid vs studentized resid)  as we did in the previous exercises. I left it here to your own discovery.<br>
+Finally it is very likely that the obeservation is an outlier and/or a leverage point since its insertion has clearly inlfluenced the model results.
+
+## Exercise 15
+
+```{python}
+Boston=load_data('Boston')
+```
+
+```{python}
+Boston.columns
+```
+
+```{python}
+Boston.head()
+```
+
+### (a)
+
+```{python}
+result=[]
+y=Boston['crim']
+for i in range(1,13,1):
+    predictor=Boston.columns[i]
+    x=Boston.loc[:,predictor]
+    x=sm.add_constant(x)
+    model=sm.OLS(y,x)
+    result.append({predictor: model.fit().pvalues[1]})
+result
+```
+
+All predictors are significant except 'chas'.
+
+### (b)
+
+```{python}
+X=MS(Boston.columns.drop(['crim'])).fit_transform(Boston)
+model=sm.OLS(y,X)
+result_new=model.fit()
+summarize(result_new)
+```
+
+The null hypothesis given in the question is rejected for the following predictors : zn, dis, rad and medv
+
+### (c)
+
+```{python}
+result1=[]
+for i in range(1,13,1):
+    predictor=Boston.columns[i]
+    x=Boston.loc[:,predictor]
+    x=sm.add_constant(x)
+    model1=sm.OLS(y,x)
+    result1.append(model1.fit().params[1])
+plt.scatter(result1,result_new.params[1:14])
+plt.xlabel('Univariate coef')
+plt.ylabel('Multivariate coef');
+```
+
+```{python}
+result_new.pvalues[2:]
+```
+
+We notice that the outlier point returns to the 'Nox' coefficient. Let's remove this point from the plot and show it again
+
+```{python}
+plt.scatter(result1[0:3],result_new.params[1:4],color='blue')
+plt.scatter(result1[4:12],result_new.params[5:14],color='blue')
+plt.plot([-4,2], [-4,2]) 
+plt.xlabel('Univariate coef')
+plt.ylabel('Multivariate coef');
+```
+
+```{python}
+df=pd.DataFrame({'Univariate':result1,'Multivariate':result_new.params[1:]})
+```
+
+```{python}
+df
+```
+
+We notice that features 'age', 'rad', 'tax', 'medv' and 'zn' are the closer to the fitting line. However, since we failed to reject the null hyoptheses for 'age' and 'tax' their related points should have no meaning.
+
+### (d)
+
+```{python}
+
+
+nl_results=[]
+for i in range(1,13):
+    predictor=Boston.columns[i]
+    x=Boston.loc[:,predictor]
+    X = MS([poly(predictor, degree=3)]).fit_transform(Boston)
+    model=sm.OLS(y,X)
+    nl_results.append({predictor:model.fit().pvalues[0:4]})
+nl_results
+```
+
+Cubic relationships are not significant for predictors 'rm', 'lstat', 'tax', 'rad' and 'zn'. On the other hand we can assert that there is a cubic association relationships regarding features 'indus', 'chas', 'nox', 'age', 'dis', 'ptratio' and 'medv'.
